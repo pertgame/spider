@@ -70,7 +70,7 @@ class BDTB:
     #获取帖子标题
     def getTitle(self,page):
         #得到标题的正则表达式
-        pattern = re.compile('<h1 class="core_title_txt.*?>(.*?)</h1>',re.S)
+        pattern = re.compile('<h\d class="core_title_txt.*?>(.*?)</h\d>',re.S)
         result = re.search(pattern,page)
         if result:
             #如果存在，则返回标题
@@ -100,6 +100,23 @@ class BDTB:
             contents.append(content.encode('utf-8'))
         return contents
 
+    def getContent2(self, page):
+        #匹配所有楼层的内容
+        pattern = re.compile('<div class="p_content.*?">.*?<div id="post_content_.*?>(.*?)</div>' + 
+            '.*?<div class="core_reply j_lzl_wrapper">.*?' + 
+            '<span class="tail-info">(.*?)</span>.*?<span class="tail-info">(.*?)</span>',re.S)
+        items = re.findall(pattern,page)
+        contents = []
+        for item in items:
+            #将文本进行去除标签处理，同时在前后加入换行符
+            text        = item[0]
+            floor       = item[1]
+            reply_time  = item[2]
+
+            content = "\n"+self.tool.replace(text)+"\n"
+            content = content.encode('utf-8')
+            contents.append((content, floor, reply_time))
+        return contents
     def setFileTitle(self,title):
         #如果标题不是为None，即成功获取到标题
         if title is not None:
@@ -116,6 +133,13 @@ class BDTB:
                 self.file.write(floorLine)
             self.file.write(item)
             self.floor += 1
+    def writeData2(self,contents):
+        #向文件写入每一楼的信息
+        for item in contents:
+            #楼之间的分隔符
+            floorLine = "\n" + "------------------------" + item[1].encode('utf-8') + "  创建时间:" + item[2].encode('utf-8')+"----------------------------------\n"
+            self.file.write(floorLine)
+            self.file.write(item[0])
 
     def start(self):
         indexPage = self.getPage(1)
@@ -130,8 +154,8 @@ class BDTB:
             for i in range(1,int(pageNum)+1):
                 print "正在写入第" + str(i) + "页数据"
                 page = self.getPage(i)
-                contents = self.getContent(page)
-                self.writeData(contents)
+                contents = self.getContent2(page)
+                self.writeData2(contents)
         #出现写入异常
         except IOError,e:
             print "写入异常，原因" + e.message
@@ -140,9 +164,10 @@ class BDTB:
 
 
 
-print u"请输入帖子代号"
-baseURL = 'http://tieba.baidu.com/p/' + str(raw_input(u'http://tieba.baidu.com/p/'))
-seeLZ = raw_input("是否只获取楼主发言，是输入1，否输入0\n")
-floorTag = raw_input("是否写入楼层信息，是输入1，否输入0\n")
+print u"请输入帖子编号:"
+#baseURL = 'http://tieba.baidu.com/p/' + str(raw_input(u'http://tieba.baidu.com/p/'))
+baseURL = 'http://tieba.baidu.com/p/2116730934' # + str(raw_input(u'http://tieba.baidu.com/p/'))
+seeLZ = 1 # raw_input("是否只获取楼主发言，是输入1，否输入0\n")
+floorTag = 1 #raw_input("是否写入楼层信息，是输入1，否输入0\n")
 bdtb = BDTB(baseURL,seeLZ,floorTag)
 bdtb.start()
